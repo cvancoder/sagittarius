@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Sagittarius - Canvas Book Editor</title>
+<style>
+  :root {
+    --bg:#6b7280; --tb:#ffffff; --tb-b:#e2e0db; --g:#f8f7f5; --gb:#eae8e4;
+    --hover:#eeede9; --act-bg:#e8eff8; --act-c:#3b6fc0; --accent:#3b6fc0;
+    --tx:#2c2c2c; --dim:#888; --lbl:#999; --danger:#c0392b; --sep:#ddd9d0;
+    --r:5px; --font:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:var(--bg);font-family:var(--font);height:100vh;display:flex;flex-direction:column;overflow:hidden;}
+  .tw{position:sticky;top:0;z-index:1000;}
+  .tr{background:var(--tb);border-bottom:1px solid var(--tb-b);padding:4px 8px;display:flex;flex-wrap:wrap;align-items:center;gap:4px;}
+  .tr:first-child{box-shadow:0 1px 3px rgba(0,0,0,0.04);}
+  .tr:nth-child(2){padding:3px 8px;font-size:11px;}
+  .g{display:inline-flex;align-items:center;gap:2px;background:var(--g);border:1px solid var(--gb);border-radius:6px;padding:2px 3px;}
+  .g .gl{font-size:8px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:var(--lbl);padding:0 3px 0 1px;user-select:none;}
+  .tr button{font-family:var(--font);font-size:12px;font-weight:500;border:none;background:transparent;color:var(--tx);cursor:pointer;border-radius:var(--r);padding:3px 6px;min-width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center;transition:background .1s;}
+  .tr button:hover{background:var(--hover);}
+  .tr button.active{background:var(--act-bg);color:var(--act-c);font-weight:600;}
+  .tr button:disabled{opacity:.3;cursor:default;}
+  .tr button.t{font-size:11px;padding:3px 7px;min-width:unset;}
+  .tr select{font-family:var(--font);font-size:11px;font-weight:500;border:1px solid var(--gb);background:#fff;color:var(--tx);border-radius:var(--r);padding:2px 16px 2px 5px;height:24px;cursor:pointer;appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='%23888'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 4px center;}
+  .tr select:focus{outline:2px solid var(--accent);outline-offset:-1px;}
+  .tr input[type="color"]{width:24px;height:24px;border:1px solid var(--gb);border-radius:var(--r);padding:1px;cursor:pointer;background:#fff;}
+  .sep{width:1px;height:16px;background:var(--sep);margin:0 2px;flex-shrink:0;}
+  .pill{font-size:9px;font-weight:600;padding:2px 6px;border-radius:10px;background:var(--g);border:1px solid var(--gb);color:var(--dim);user-select:none;}
+  #status-pill{font-size:10px;padding:3px 10px;}
+  #status-pill.ok{border-color:#22c55e;color:#15803d;background:#f0fdf4;}
+  #status-pill.warn{border-color:#eab308;color:#a16207;background:#fefce8;}
+  #status-pill.bad{border-color:#ef4444;color:#b91c1c;background:#fef2f2;}
+  .spacer{flex:1;}
+  /* Dev menu */
+  .dev-wrap{position:relative;}
+  .dev-wrap>button{font-size:13px!important;min-width:28px!important;color:var(--dim);border:1px solid var(--gb)!important;border-radius:6px;background:var(--g)!important;}
+  .dev-wrap>button:hover{color:var(--tx);}
+  #dev-menu{display:none;position:absolute;top:100%;right:0;margin-top:3px;background:#fff;border:1px solid var(--tb-b);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.12);padding:4px;min-width:170px;z-index:200;}
+  #dev-menu.open{display:block;}
+  #dev-menu button{display:flex;width:100%;text-align:left;font-size:11px;padding:5px 8px;border-radius:4px;min-width:unset;height:auto;gap:6px;align-items:center;}
+  #dev-menu button:hover{background:var(--act-bg);color:var(--accent);}
+  #dev-menu .chk{width:14px;display:inline-block;text-align:center;font-size:13px;}
+  /* Layout panel */
+  #layout-panel{display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;border:1px solid var(--tb-b);border-radius:10px;box-shadow:0 8px 30px rgba(0,0,0,.18);padding:16px 20px;min-width:260px;z-index:300;font-size:12px;line-height:1.7;}
+  #layout-panel.open{display:block;}
+  #layout-panel .lp-title{font-size:14px;font-weight:600;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;}
+  #layout-panel .lp-title button{font-size:16px;background:none;border:none;cursor:pointer;color:var(--dim);padding:0 4px;}
+  #layout-panel .lp-row{display:flex;justify-content:space-between;color:var(--dim);padding:1px 0;}
+  #layout-panel .lp-row b{color:var(--tx);font-weight:500;}
+  /* Stats detail panel */
+  #stats-detail{display:none;position:absolute;bottom:100%;right:0;margin-bottom:4px;background:#fff;border:1px solid var(--tb-b);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.12);padding:8px 12px;min-width:200px;max-height:180px;overflow-y:auto;z-index:200;font-size:11px;line-height:1.6;}
+  #stats-detail.open{display:block;}
+  #stats-detail .sd-row{color:var(--dim);}
+  #stats-detail .sd-row[data-chapter-para]{border-radius:4px;padding:2px 4px;margin:-2px -4px;}
+  #stats-detail .sd-row[data-chapter-para]:hover{background:var(--tb-hover);color:var(--tx);}
+  #stats-detail .sd-row b{color:var(--tx);font-weight:500;}
+  /* Link bar */
+  #link-bar{display:none;padding:5px 12px;background:#fafaf7;border-bottom:1px solid var(--tb-b);align-items:center;gap:8px;font-size:12px;}
+  #link-bar.visible{display:flex;}
+  #link-bar input{font-family:var(--font);font-size:12px;padding:3px 7px;border:1px solid #ccc;border-radius:4px;width:300px;}
+  #link-bar button{font-family:var(--font);font-size:11px;padding:3px 10px;border:1px solid #ccc;border-radius:4px;background:#fff;cursor:pointer;}
+  #link-bar button:first-of-type{background:var(--accent);color:#fff;border-color:var(--accent);}
+  /* Find bar */
+  #find-bar{display:none;padding:5px 12px;background:#fafaf7;border-bottom:1px solid var(--tb-b);align-items:center;gap:8px;font-size:12px;}
+  #find-bar.visible{display:flex;}
+  #find-bar input{font-family:var(--font);font-size:12px;padding:3px 7px;border:1px solid #ccc;border-radius:4px;width:220px;}
+  #find-bar button{font-family:var(--font);font-size:11px;padding:3px 8px;border:1px solid #ccc;border-radius:4px;background:#fff;cursor:pointer;}
+  #find-bar .find-count{font-size:11px;color:var(--dim);min-width:40px;text-align:center;user-select:none;}
+  /* Page area */
+  #editor-area{display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden;}
+  #ruler-h-bar{display:flex;height:24px;flex-shrink:0;background:#f5f5f5;border-bottom:1px solid #ddd;}
+  #ruler-corner{width:24px;height:24px;flex-shrink:0;background:#eee;border-right:1px solid #ddd;border-bottom:1px solid #ddd;}
+  #ruler-h-wrap{flex:1;overflow:hidden;position:relative;}
+  #ruler-h-canvas{display:block;}
+  #editor-body{display:flex;flex:1;min-height:0;overflow:hidden;}
+  #view-editor{display:flex;flex:1;min-height:0;overflow:hidden;}
+  #view-designer{display:none;flex:1;min-height:0;overflow:hidden;flex-direction:row;}
+  /* ═══ DESIGNER FONT ═══ */
+  #view-designer,#toolbar-design{--des-font:Arial,Helvetica,sans-serif;}
+
+  /* ═══ SECTIONS PANEL (LEFT) ═══ */
+  #des-sections{width:200px;min-width:200px;flex-shrink:0;background:#f0edf5;border-right:0.5px solid rgba(0,0,0,0.15);display:flex;flex-direction:column;overflow:hidden;font-family:var(--des-font);font-size:12px;}
+  #des-sections-hdr{padding:10px 12px;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.4px;color:#fff;background:linear-gradient(to bottom,#534AB7,#3C3489);flex-shrink:0;}
+  #des-sections-list{flex:1;overflow-y:auto;padding:5px;display:flex;flex-direction:column;gap:2px;}
+  .des-sec-group{background:#fff;border:0.5px solid rgba(0,0,0,0.12);border-radius:6px;overflow:hidden;}
+  .des-sec-region{padding:8px 10px 6px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#fff;background:linear-gradient(to bottom,#534AB7,#1E1A4A);}
+  .des-sec-item{padding:7px 10px 7px 14px;cursor:pointer;font-size:12px;color:#333;border-left:3px solid transparent;transition:all 0.12s;position:relative;}
+  .des-sec-item:hover{background:#EEEDFE;color:#3C3489;}
+  .des-sec-item.active{background:#ddd8f0;color:#2a1f6e;font-weight:600;border-left-color:#534AB7;}
+  .des-sec-item.active::after{content:'▶';position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:8px;color:#534AB7;}
+  .des-sec-item.disabled{color:#666;cursor:default;}
+  .des-sec-item.disabled:hover{background:transparent;color:#666;}
+  .des-sec-item+.des-sec-item{border-top:0.5px solid rgba(0,0,0,0.04);}
+
+  /* ═══ PREVIEW (CENTER) ═══ */
+  #des-preview{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;background:var(--bg);gap:8px;}
+  #des-preview-canvas{background:#fff;box-shadow:0 4px 20px rgba(0,0,0,0.2);border-radius:2px;display:block;flex-shrink:0;}
+  #des-preview-label{font-size:10px;color:rgba(255,255,255,0.5);font-family:var(--des-font);flex-shrink:0;}
+
+  /* ═══ PROPERTIES PANEL (RIGHT) ═══ */
+  #des-props{width:280px;min-width:280px;flex-shrink:0;background:#f0edf5;border-left:0.5px solid rgba(0,0,0,0.15);display:flex;flex-direction:column;overflow:hidden;font-family:var(--des-font);font-size:12px;}
+  #des-props-hdr{padding:10px 12px;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.4px;color:#fff;background:linear-gradient(to bottom,#534AB7,#3C3489);flex-shrink:0;}
+  #des-props-content{flex:1;overflow-y:auto;padding:5px;display:flex;flex-direction:column;gap:2px;}
+
+  /* ═══ DESCRIPTION ═══ */
+  #des-description{height:120px;min-height:120px;flex-shrink:0;border-top:0.5px solid rgba(0,0,0,0.12);background:#e8e4f0;padding:10px 12px;overflow-y:auto;font-family:var(--des-font);}
+  #des-description-title{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.3px;color:#7a6fa0;margin-bottom:4px;}
+  #des-description-text{font-size:11px;color:#555;line-height:1.5;}
+
+  /* ═══ ACCORDION GROUPS ═══ */
+  .des-prop-group{border-radius:6px;overflow:hidden;}
+  .des-prop-group-hdr{padding:7px 10px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#fff;cursor:pointer;display:flex;align-items:center;gap:8px;border-radius:6px;background:linear-gradient(to bottom,#534AB7,#1E1A4A);transition:background 0.25s;user-select:none;}
+  .des-prop-group-hdr:hover{background:linear-gradient(to bottom,#5F56C2,#26215C);}
+  .des-prop-group-hdr.active{background:linear-gradient(to bottom,#7F77DD,#3C3489);}
+  .des-prop-group-hdr.active:hover{background:linear-gradient(to bottom,#8B84E0,#453DA3);}
+  .des-prop-group.open>.des-prop-group-hdr{border-radius:6px 6px 0 0;}
+  .des-prop-group-hdr .des-arrow{font-size:8px;color:#AFA9EC;transition:transform 0.2s;width:12px;text-align:center;order:1;margin-left:auto;}
+  .des-prop-group-hdr.active .des-arrow{color:#fff;}
+  .des-prop-group.open>.des-prop-group-hdr .des-arrow{transform:rotate(90deg);}
+  .des-prop-group-body{display:none;padding:6px 10px 10px;background:#fff;border-radius:0 0 6px 6px;border:0.5px solid rgba(0,0,0,0.12);border-top:none;}
+  .des-prop-group.open>.des-prop-group-body{display:block;}
+  .des-prop-group-inner{padding:0;}
+  /* ═══ CONTROL ROWS ═══ */
+  .des-control-row{display:flex;align-items:center;gap:6px;margin-top:5px;}
+  .des-control-row:first-child{margin-top:0;}
+  .des-control-label{font-size:11px;font-weight:500;color:#777;min-width:64px;flex-shrink:0;}
+  .des-control-sub{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.3px;color:#999;padding:8px 0 4px;margin-top:6px;border-top:0.5px solid rgba(0,0,0,0.08);}
+
+  /* ═══ SELECT DROPDOWNS ═══ */
+  .des-control-select{font-family:var(--des-font);font-size:11px;padding:0 16px 0 6px;border:0.5px solid rgba(0,0,0,0.15);border-radius:3px;background:#fff;color:#333;cursor:pointer;min-width:80px;height:26px;appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='6' height='6' viewBox='0 0 6 6'%3E%3Cpath d='M1 2L3 4.5L5 2' stroke='%23999' stroke-width='0.8' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 5px center;}
+  .des-control-select:hover{border-color:rgba(0,0,0,0.3);}
+  .des-control-select:focus{outline:none;border-color:#7F77DD;box-shadow:0 0 0 2px rgba(127,119,221,0.2);}
+
+  /* ═══ TEXT / NUMBER INPUTS ═══ */
+  .des-control-input{font-family:var(--des-font);font-size:11px;padding:0 6px;border:0.5px solid rgba(0,0,0,0.15);border-radius:3px;background:#fff;color:#333;height:26px;flex:1;max-width:160px;}
+  .des-control-input:hover{border-color:rgba(0,0,0,0.3);}
+  .des-control-input:focus{outline:none;border-color:#7F77DD;box-shadow:0 0 0 2px rgba(127,119,221,0.2);}
+  .des-control-input[type="number"]{-moz-appearance:textfield;}
+  .des-control-input[type="number"]::-webkit-inner-spin-button,
+  .des-control-input[type="number"]::-webkit-outer-spin-button{height:22px;}
+
+  /* ═══ SEGMENTED BUTTONS (B/I/U, ALIGN) ═══ */
+  .des-control-btn-group{display:inline-flex;border:0.5px solid rgba(0,0,0,0.15);border-radius:3px;overflow:hidden;}
+  .des-control-btn{font-family:var(--des-font);font-size:10px;padding:0 10px;border:none;background:#fff;color:#999;cursor:pointer;border-right:0.5px solid rgba(0,0,0,0.10);height:26px;line-height:26px;transition:background 0.1s;}
+  .des-control-btn:last-child{border-right:none;}
+  .des-control-btn:hover:not(.active){background:#f0edf5;}
+  .des-control-btn.active{background:#EEEDFE;color:#3C3489;font-weight:600;}
+
+  /* ═══ COLOR SWATCH ═══ */
+  .des-control-color{width:26px;height:26px;border:0.5px solid rgba(0,0,0,0.15);border-radius:3px;padding:2px;cursor:pointer;background:#fff;}
+
+  /* ═══ TOGGLE SWITCH ═══ */
+  .des-control-toggle{position:relative;width:30px;height:16px;border-radius:8px;background:rgba(0,0,0,0.18);cursor:pointer;transition:background 0.2s;flex-shrink:0;}
+  .des-control-toggle.on{background:#534AB7;}
+  .des-control-toggle .des-knob{position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:50%;background:#fff;transition:transform 0.2s;box-shadow:0 1px 2px rgba(0,0,0,0.15);}
+  .des-control-toggle.on .des-knob{transform:translateX(14px);}
+
+  /* ═══ DESIGNER TOOLBAR ═══ */
+  #toolbar-design{display:none;}
+  #toolbar-design .td-title{font-weight:600;font-size:13px;color:#333;font-family:var(--des-font);}
+  #toolbar-design .td-btn-update{background:#534AB7;color:#fff;font-weight:600;padding:5px 18px;border-radius:6px;font-family:var(--des-font);}
+  #toolbar-design .td-btn-update:hover{background:#3C3489;}
+  #toolbar-design .td-btn-cancel{font-weight:500;padding:5px 16px;border:0.5px solid rgba(0,0,0,0.15);border-radius:6px;color:#555;font-family:var(--des-font);}
+  #toolbar-design .td-btn-cancel:hover{background:#f0edf5;}
+  #ruler-v-wrap{width:24px;flex-shrink:0;overflow:hidden;position:relative;background:#f5f5f5;border-right:1px solid #ddd;}
+  #ruler-v-canvas{display:block;}
+  #page-area{flex:1;min-height:0;overflow-y:auto;overflow-x:auto;display:flex;justify-content:center;}
+  #pages-wrapper{display:flex;flex-direction:column;align-items:center;padding:30px 20px 60px 20px;}
+  .page-canvas{background:#fff;box-shadow:0 2px 12px rgba(0,0,0,.25);cursor:text;margin-bottom:24px;display:block;}
+  .page-canvas.drag-move{cursor:move;}
+  .page-number{text-align:center;color:#9ca3af;font-size:11px;margin-top:-20px;margin-bottom:16px;}
+  #input-wrapper{position:fixed;left:0;top:0;width:1px;height:1px;overflow:hidden;opacity:0;pointer-events:none;}
+  #input-wrapper textarea{width:1px;height:1px;padding:0;border:0;outline:none;resize:none;}
+  #link-tooltip{display:none;position:fixed;padding:4px 8px;background:#333;color:#fff;font-size:11px;border-radius:3px;pointer-events:none;z-index:100;max-width:400px;word-break:break-all;}
+  .overlay-bg{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.2);z-index:299;}
+  .overlay-bg.open{display:block;}
+  #spell-popup{display:none;position:fixed;background:#fff;border:1px solid #ccc;border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,.15);padding:4px 0;min-width:140px;max-width:220px;z-index:300;font-size:12px;font-family:var(--font);}
+  #spell-popup .sp-word{padding:4px 12px;font-weight:600;color:#999;font-size:11px;border-bottom:1px solid #eee;}
+  #spell-popup .sp-item{padding:5px 12px;cursor:pointer;color:var(--tx);}
+  #spell-popup .sp-item:hover{background:var(--accent);color:#fff;}
+  #spell-popup .sp-sep{border-top:1px solid #eee;margin:2px 0;}
+  #spell-popup .sp-action{padding:4px 12px;cursor:pointer;color:var(--dim);font-size:11px;}
+  #spell-popup .sp-action:hover{background:var(--tb-hover);color:var(--tx);}
+  #spell-popup .sp-none{padding:5px 12px;color:#999;font-style:italic;}
+  #section-sidebar{width:220px;min-width:220px;flex-shrink:0;background:#fafafa;border-right:1px solid #ddd;display:flex;flex-direction:column;overflow:hidden;font-family:var(--font);font-size:12px;user-select:none;transition:width 0.15s ease,min-width 0.15s ease;}
+  #section-sidebar.collapsed{width:0;min-width:0;border-right:none;}
+  #sidebar-header{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-bottom:1px solid #e0e0e0;background:#f0f0f0;flex-shrink:0;}
+  #sidebar-title{font-weight:600;font-size:12px;color:#333;}
+  #sidebar-toggle{background:none;border:none;cursor:pointer;font-size:14px;color:#666;padding:2px 6px;border-radius:3px;}
+  #sidebar-toggle:hover{background:#ddd;color:#333;}
+  #sidebar-content{flex:1;overflow-y:auto;overflow-x:hidden;padding:4px 0;}
+  #sidebar-expand{display:none;width:24px;flex-shrink:0;background:#f0f0f0;border-right:1px solid #ddd;cursor:pointer;writing-mode:vertical-rl;text-orientation:mixed;font-size:11px;color:#666;padding:8px 4px;user-select:none;align-items:center;gap:6px;}
+  #sidebar-expand:hover{background:#e0e0e0;color:#333;}
+  #sidebar-expand .expand-arrow{font-size:13px;font-weight:bold;}
+  #sidebar-expand .expand-label{font-weight:600;letter-spacing:0.3px;}
+  .sb-region{padding:8px 10px 4px 10px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#888;cursor:default;}
+  .sb-region:not(:first-child){margin-top:6px;border-top:1px solid #eee;padding-top:10px;}
+  .sb-item{display:flex;align-items:flex-start;padding:5px 10px 5px 16px;cursor:pointer;border-left:3px solid transparent;transition:background 0.1s;}
+  .sb-item:hover{background:#eef2ff;}
+  .sb-item.active{background:#e8eeff;border-left-color:#3b82f6;}
+  .sb-item-icon{width:16px;flex-shrink:0;text-align:center;color:#999;font-size:12px;margin-right:6px;margin-top:1px;}
+  .sb-item-text{flex:1;min-width:0;}
+  .sb-item-type{font-size:10px;color:#999;line-height:1.3;}
+  .sb-item-name{font-size:12px;color:#333;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .sb-item-grip{width:12px;flex-shrink:0;color:#ccc;font-size:10px;margin-right:2px;margin-top:2px;cursor:grab;letter-spacing:-1px;}
+  .sb-item-grip:hover{color:#888;}
+  .sb-cover-wrap{padding:8px 10px;display:flex;gap:10px;justify-content:center;}
+  .sb-cover{width:80px;text-align:center;cursor:pointer;}
+  .sb-cover-thumb{width:80px;height:120px;border:1px solid #ddd;border-radius:3px;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:6px;overflow:hidden;transition:border-color 0.15s;}
+  .sb-cover-thumb:hover{border-color:#3b82f6;}
+  .sb-cover-title{font-size:9px;font-weight:600;color:#555;line-height:1.2;text-align:center;word-break:break-word;margin-bottom:2px;}
+  .sb-cover-author{font-size:8px;color:#999;line-height:1.2;text-align:center;}
+  .sb-cover-label{font-size:9px;color:#999;margin-top:4px;}
+</style>
+</head>
+<body>
+
+<div class="tw">
+<!-- ROW 1: Writing tools -->
+<div class="tr" id="toolbar-row1">
+  <div class="g">
+    <button id="btn-undo" title="Undo" disabled>&#8630;</button>
+    <button id="btn-redo" title="Redo" disabled>&#8631;</button>
+  </div>
+  <div class="g">
+    <button id="btn-cut" title="Cut">&#9986;</button>
+    <button id="btn-copy" title="Copy">&#10697;</button>
+    <button id="btn-paste" title="Paste">&#128203;</button>
+    <span class="sep"></span>
+    <button id="btn-find" class="t" title="Find &amp; Replace (Ctrl+F)">Find</button>
+    <button id="btn-spell" class="t" title="Spell Check">Spell</button>
+  </div>
+  <div class="g">
+    <select id="font-family" title="Font" style="min-width:82px;"><option value="Georgia" selected>Georgia</option><option value="Times New Roman">Times New Roman</option><option value="Arial">Arial</option><option value="Helvetica">Helvetica</option><option value="Verdana">Verdana</option><option value="Tahoma">Tahoma</option><option value="Trebuchet MS">Trebuchet MS</option><option value="Courier New">Courier New</option><option value="Palatino Linotype">Palatino</option><option value="Garamond">Garamond</option></select>
+    <select id="font-size" title="Font Size" style="min-width:38px;"><option value="8">8</option><option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12" selected>12</option><option value="14">14</option><option value="16">16</option><option value="18">18</option><option value="20">20</option><option value="24">24</option><option value="28">28</option><option value="32">32</option><option value="36">36</option><option value="48">48</option><option value="72">72</option></select>
+    <input type="color" id="color-pick" value="#1a1a1a" title="Text Color">
+  </div>
+  <div class="g">
+    <span class="gl">Inline</span>
+    <button id="btn-bold" title="Bold"><b>B</b></button>
+    <button id="btn-italic" title="Italic"><i>I</i></button>
+    <button id="btn-underline" title="Underline"><span style="text-decoration:underline">U</span></button>
+    <button id="btn-strike" title="Strike"><span style="text-decoration:line-through">S</span></button>
+    <button id="btn-highlight" title="Highlight" style="background:#FFFF00;font-size:11px;font-weight:600;padding:3px 5px;">H</button>
+    <select id="sel-script" title="Superscript / Subscript" style="min-width:50px;"><option value="normal" selected>Norm</option><option value="sup">Sup</option><option value="sub">Sub</option></select>
+    <button id="btn-clear-fmt" class="t" title="Clear">Clear</button>
+    <span class="sep"></span>
+    <button id="btn-link" class="t" title="Link" style="color:var(--accent);text-decoration:underline;">Link</button>
+    <button id="btn-unlink" class="t" title="Unlink" style="color:var(--danger);">Unlink</button>
+  </div>
+  <div class="g">
+    <span class="gl">Para</span>
+    <select id="sel-role" title="Paragraph Style" style="min-width:78px;"><option value="body" selected>Normal</option><option value="heading2">Heading 2</option><option value="heading3">Heading 3</option><option value="heading4">Heading 4</option><option value="heading5">Heading 5</option><option value="heading6">Heading 6</option><option value="chapterTitle">Chapter Title</option><option value="blockQuote">Block Quote</option><option value="verse">Verse</option><option value="sceneBreak">Scene Break</option><option value="pageBreak">Page Break</option></select>
+    <span class="sep"></span>
+    <button id="btn-left" title="Left"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="1" y1="2" x2="13" y2="2"/><line x1="1" y1="5.5" x2="9" y2="5.5"/><line x1="1" y1="9" x2="13" y2="9"/><line x1="1" y1="12.5" x2="9" y2="12.5"/></svg></button>
+    <button id="btn-center" title="Center"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="1" y1="2" x2="13" y2="2"/><line x1="3" y1="5.5" x2="11" y2="5.5"/><line x1="1" y1="9" x2="13" y2="9"/><line x1="3" y1="12.5" x2="11" y2="12.5"/></svg></button>
+    <button id="btn-right" title="Right"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="1" y1="2" x2="13" y2="2"/><line x1="5" y1="5.5" x2="13" y2="5.5"/><line x1="1" y1="9" x2="13" y2="9"/><line x1="5" y1="12.5" x2="13" y2="12.5"/></svg></button>
+    <button id="btn-justify" title="Justify"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="1" y1="2" x2="13" y2="2"/><line x1="1" y1="5.5" x2="13" y2="5.5"/><line x1="1" y1="9" x2="13" y2="9"/><line x1="1" y1="12.5" x2="13" y2="12.5"/></svg></button>
+    <span class="sep"></span>
+    <select id="sel-indent" style="min-width:44px;" title="Indent"><option value="0">0"</option><option value="18" selected>.25"</option><option value="21.6">.30"</option><option value="23.76">.33"</option><option value="36">.50"</option></select>
+    <select id="sel-line-height" style="min-width:36px;" title="Line spacing"><option value="1.0">1.0</option><option value="1.15">1.15</option><option value="1.2" selected>1.2</option><option value="1.5">1.5</option><option value="2.0">2.0</option></select>
+    <select id="sel-space-before" style="min-width:44px;" title="Before"><option value="0" selected>&#8593;0</option><option value="3">&#8593;3</option><option value="6">&#8593;6</option><option value="12">&#8593;12</option></select>
+    <select id="sel-space-after" style="min-width:44px;" title="After"><option value="0" selected>&#8595;0</option><option value="3">&#8595;3</option><option value="6">&#8595;6</option><option value="12">&#8595;12</option></select>
+  </div>
+  <div class="g">
+    <span class="gl">Lists</span>
+    <button id="btn-bullet" title="Bullets" style="font-size:15px;">&#8226;</button>
+    <button id="btn-number" title="Numbers">1.</button>
+    <span id="list-level" class="pill"></span>
+  </div>
+  <div class="g">
+    <span class="gl">Insert</span>
+    <button id="btn-scene" class="t" title="Scene Break">Scene</button>
+    <button id="btn-pagebreak" class="t" title="Page Break">Page</button>
+    <button id="btn-dropcap" class="t" title="Toggle Drop Cap on current paragraph">Drop Cap</button>
+    <button id="btn-smallcaps" class="t" title="Toggle Lead-in Small Caps for all chapters">SC</button>
+    <button id="btn-insert-image" class="t" title="Insert Image">Img</button>
+    <input type="file" id="image-file-input" accept="image/*" style="display:none;">
+  </div>
+</div>
+
+<!-- ROW 2: File / Layout / View / Stats / Dev -->
+<div class="tr" id="toolbar-row2">
+  <div class="g">
+    <button id="btn-save" class="t" title="Save (Ctrl+S)">&#128190; Save</button>
+    <button id="btn-load" class="t" title="Load saved document">&#128194; Load</button>
+    <button id="btn-export" class="t" title="Export document as JSON">&#11015; Export JSON</button>
+  </div>
+  <div class="g">
+    <button id="btn-layout-panel" class="t" title="Page Setup">&#128196; Layout</button>
+  </div>
+  <div class="g">
+    <button id="btn-design" class="t" title="Book Design">&#127912; Design</button>
+  </div>
+  <div class="g">
+    <button id="btn-zoom-out" title="Zoom Out">&#8722;</button>
+    <select id="zoom-select" title="Zoom" style="min-width:50px;"><option value="0.50">50%</option><option value="0.75">75%</option><option value="1.00">100%</option><option value="1.25" selected>125%</option><option value="1.50">150%</option><option value="2.00">200%</option><option value="3.00">300%</option></select>
+    <button id="btn-zoom-in" title="Zoom In">+</button>
+  </div>
+  <div class="spacer"></div>
+  <div class="g" id="stats-bar" style="position:relative;">
+    <span style="font-size:11px;color:var(--dim);">Words: <b id="stat-words" style="color:var(--tx);">0</b></span>
+    <span class="sep"></span>
+    <span style="font-size:11px;color:var(--dim);">Ch: <b id="stat-chapters" style="color:var(--tx);">0</b></span>
+    <span class="sep"></span>
+    <span style="font-size:11px;color:var(--dim);">Pg: <b id="stat-pages" style="color:var(--tx);">1</b></span>
+    <span class="sep"></span>
+    <span style="font-size:11px;color:var(--dim);"><b id="stat-cur-ch" style="color:var(--tx);">&#8212;</b></span>
+    <button id="btn-stats-detail" class="t" title="Chapter details" style="font-size:10px;">Details &#9662;</button>
+    <div id="stats-detail"></div>
+  </div>
+  <span id="pipeline-debug" style="display:none;font-size:10px;font-family:monospace;color:#888;white-space:nowrap;overflow:hidden;max-width:600px;"></span>
+  <div class="dev-wrap">
+    <button id="dev-btn" title="Developer tools">&#9881;</button>
+    <div id="dev-menu">
+      <button id="btn-debug-overlay"><span class="chk">&#9744;</span> Layout Overlay</button>
+      <button id="btn-debug"><span class="chk">&#9744;</span> Selection Debug</button>
+      <button id="btn-preflight">Preflight Check</button>
+      <button id="btn-pipeline-debug"><span class="chk">&#9744;</span> Pipeline Debug</button>
+      <button id="btn-rulers"><span class="chk">&#9745;</span> Rulers</button>
+    </div>
+  </div>
+  <span id="status-pill" class="pill">Ready</span>
+</div>
+<div class="tr" id="toolbar-design">
+  <div class="g">
+    <span class="td-title">Book Design</span>
+  </div>
+  <div class="spacer"></div>
+  <div class="g">
+    <button id="btn-design-update" class="t td-btn-update" title="Apply changes">Update</button>
+    <button id="btn-design-cancel" class="t td-btn-cancel" title="Discard changes">Cancel</button>
+  </div>
+</div>
+</div><!-- /tw -->
+
+<!-- Layout panel (modal) -->
+<div id="layout-overlay" class="overlay-bg"></div>
+<div id="layout-panel">
+  <div class="lp-title">Page Setup <button id="layout-close">&times;</button></div>
+  <div id="layout-panel-body"></div>
+</div>
+
+<!-- Link bar -->
+<div id="link-bar">
+  <span>URL:</span>
+  <input type="text" id="link-url-input" value="https://" placeholder="https://example.com">
+  <button id="link-apply-btn">Apply</button>
+  <button id="link-cancel-btn">Cancel</button>
+</div>
+
+<!-- Find bar -->
+<div id="find-bar">
+  <span style="font-weight:500;">Find:</span>
+  <input type="text" id="find-input" placeholder="Search text...">
+  <span class="find-count" id="find-count">0/0</span>
+  <button id="find-prev" title="Previous">&#9650;</button>
+  <button id="find-next" title="Next">&#9660;</button>
+  <span class="sep"></span>
+  <span style="font-weight:500;">Replace:</span>
+  <input type="text" id="replace-input" placeholder="Replace with...">
+  <button id="replace-one">Replace</button>
+  <button id="replace-all">All</button>
+  <button id="find-close" title="Close">&times;</button>
+</div>
+
+<div id="link-tooltip"></div>
+<div id="editor-area">
+  <div id="ruler-h-bar">
+    <div id="ruler-corner"></div>
+    <div id="ruler-h-wrap">
+      <canvas id="ruler-h-canvas" height="24"></canvas>
+    </div>
+  </div>
+  <div id="editor-body">
+    <div id="view-editor">
+      <div id="sidebar-expand" title="Show navigator"><span class="expand-arrow">&raquo;</span><span class="expand-label">Navigator</span></div>
+      <div id="section-sidebar">
+        <div id="sidebar-header">
+          <span id="sidebar-title">Navigator</span>
+          <button id="sidebar-toggle" title="Collapse">&laquo;</button>
+        </div>
+        <div id="sidebar-content"></div>
+      </div>
+      <div id="ruler-v-wrap">
+        <canvas id="ruler-v-canvas" width="24"></canvas>
+      </div>
+      <div id="page-area">
+        <div id="pages-wrapper"></div>
+      </div>
+    </div>
+    <div id="view-designer">
+
+      <!-- ═══ LEFT: Section List ═══ -->
+      <div id="des-sections">
+        <div id="des-sections-hdr">Sections</div>
+        <div id="des-sections-list">
+          <div class="des-sec-group">
+            <div class="des-sec-region">Front Matter</div>
+            <div class="des-sec-item disabled" data-des-type="titlePage">Title Page</div>
+            <div class="des-sec-item disabled" data-des-type="copyright">Copyright</div>
+            <div class="des-sec-item disabled" data-des-type="dedication">Dedication</div>
+            <div class="des-sec-item disabled" data-des-type="toc">Table of Contents</div>
+            <div class="des-sec-item disabled" data-des-type="foreword">Foreword</div>
+            <div class="des-sec-item disabled" data-des-type="preface">Preface</div>
+          </div>
+          <div class="des-sec-group">
+            <div class="des-sec-region">Body</div>
+            <div class="des-sec-item active" data-des-type="chapter">Chapters</div>
+          </div>
+          <div class="des-sec-group">
+            <div class="des-sec-region">Back Matter</div>
+            <div class="des-sec-item disabled" data-des-type="acknowledgments">Acknowledgments</div>
+            <div class="des-sec-item disabled" data-des-type="aboutAuthor">About the Author</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ CENTER: Preview Page ═══ -->
+      <div id="des-preview">
+        <canvas id="des-preview-canvas"></canvas>
+        <div id="des-preview-label">Chapter opener page</div>
+      </div>
+
+      <!-- ═══ RIGHT: Properties + Description ═══ -->
+      <div id="des-props">
+        <div id="des-props-hdr">Properties</div>
+        <div id="des-props-content">
+          <div style="padding:12px 14px;color:#aaa;font-size:11px;font-style:italic;">
+            Select a section to edit its properties.
+          </div>
+        </div>
+        <div id="des-description">
+          <div id="des-description-title">Description</div>
+          <div id="des-description-text">
+            Select a property to see its description here. Each
+            setting controls a specific part of the page layout
+            and typography.
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div id="input-wrapper">
+  <textarea id="input-capture" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false"></textarea>
+</div>
+
+<div id="spell-popup"></div>
