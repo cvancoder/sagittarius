@@ -10,34 +10,72 @@ via `build.sh`.
 ./build.sh                    # → sag_build.html (full)
 ./build.sh --no-tests         # → sag_build.html (without test harness)
 ```
-The output goes to the project root. Nginx serves it from there.
-After any edit, always run `./build.sh` so the live preview updates.
+The output goes to the project root. After any edit, always run `./build.sh`.
 
 ## File Structure
 - `shell/head.html` — DOCTYPE, CSS, HTML body (edit CSS and HTML structure here)
 - `shell/tail.html` — closing tags
 - `parts/01-core.js` through `parts/14-stats-find-init.js` — JS modules
-- `sag_build.html` — built output (DO NOT edit directly, always rebuild)
+- `specs/` — build specifications (read-only reference, never modify)
+- `sag_build.html` — built output (NEVER edit directly, always rebuild)
 
 See `MANIFEST.md` for detailed contents of each part file.
 
-## Critical Rules
+## ════════════════════════════════════════════
+## MANDATORY RULES — VIOLATIONS WILL BE REJECTED
+## ════════════════════════════════════════════
 
-### Never Do
-- Never edit `sag_build.html` directly — always edit part files and rebuild
-- Never change a default value in `defaultRunStyle()` or `defaultParaStyle()`
-  without also changing it in `v2BookDefaults()` (in `parts/11-cascade.js`)
-- Never modify the undo delta format without updating both `applyUndo()` and
-  `applyRedo()` in `parts/05-undo-edit.js`
-- Never add code that runs on every frame/scroll without measuring performance
-- Never introduce `contenteditable` — this is a canvas-based editor
+### Scope Control
+- **ONLY modify files explicitly listed in the spec's "Files to Modify" section**
+- **NEVER make changes "while you're in there" — no drive-by fixes**
+- **NEVER refactor, rename, reformat, or "improve" code outside the spec scope**
+- **If you discover a bug outside scope, REPORT IT in the commit message — do NOT fix it**
+- **If the spec is ambiguous, STOP and ask in the commit message — do NOT guess**
 
-### Always Do
-- Run `./build.sh` after every edit
-- Add tests in `parts/10-tests.js` for any new function
-- Keep each change to ONE part file when possible
-- Preserve the section comment headers (`/* === ... === */`)
+### Code Integrity
+- NEVER change `defaultRunStyle()` or `defaultParaStyle()` without also
+  changing `v2BookDefaults()` in `parts/11-cascade.js`
+- NEVER modify the undo delta format without updating both `applyUndo()`
+  and `applyRedo()` in `parts/05-undo-edit.js`
+- NEVER add code that runs on every frame/scroll without measuring performance
+- NEVER introduce `contenteditable` — this is a canvas-based editor
+- NEVER change the coordinate system (points in JSON, screen pixels in layout)
+- NEVER modify the section isolation model (x-sectionId, clampToSection)
+- NEVER change the save/load format without a migration path in `parts/08-persist.js`
+
+### Code Style
 - Use `var` not `let`/`const` — the codebase is ES5 throughout
+- Preserve section comment headers (`/* === ... === */`)
+- Match existing naming patterns in the file you're editing
+- No new dependencies or external libraries without spec approval
+
+### Pre-Commit Checklist (MANDATORY — DO ALL OF THESE)
+1. Run `./build.sh` — must succeed with no errors
+2. List EVERY file you modified in the commit message
+3. Confirm you modified ZERO files outside the spec's scope
+4. If tests exist for modified functions, verify they still pass
+5. If you added new functions, add tests in `parts/10-tests.js`
+6. State what you changed and why for each file
+
+### Commit Message Format
+```
+Build XXXX: [short description]
+
+Files modified:
+- parts/XX-name.js: [what changed and why]
+- shell/head.html: [what changed and why]
+
+Files NOT modified (confirming scope):
+- All other part files unchanged
+- No changes to undo system, cascade, or persistence
+
+Tests: [passed/added N new/not applicable]
+Discovered issues (not fixed): [list any bugs found but not touched]
+```
+
+## ════════════════════════════════════════════
+## ARCHITECTURE REFERENCE
+## ════════════════════════════════════════════
 
 ### Coordinate System
 - JSON styles: stored in POINTS (1pt = 1/72 inch)
@@ -45,19 +83,19 @@ See `MANIFEST.md` for detailed contents of each part file.
 - Canvas display: screen pixels × zoom
 - PDF export: screen pixels × (72/96) = PDF points
 
-### Architecture Patterns
+### Architecture Patterns (DO NOT DEVIATE)
 - `_isChapterHeading` flag pattern for heading detection
 - Section isolation: paragraphs carry `x-sectionId`
 - Selection clamped to anchor's section
 - Compound deltas for multi-step operations (e.g., Add Chapter)
 - `bookDesign` is the live design template; themes replace it entirely
+- Designer changeset system: `desSetChange` → `desCommitChangeset` / `desDiscardChangeset`
+- Preview renders from `desMergedDesign()`, NEVER writes to `bookDesign`
 
 ### Designer/Stylist Panel
 - Purple gradient headers: closed `#534AB7→#1E1A4A`, open `#7F77DD→#3C3489`
 - Font: Barlow Semi Condensed (self-hosted in production)
 - See `sagittarius_stylist_panel_spec.md` for full design spec
-- Controls write to `bookDesign` via changeset system
-- Preview renders from `desMergedDesign()`, never writes to `bookDesign`
 
 ### Key File Locations
 | What | Where |
