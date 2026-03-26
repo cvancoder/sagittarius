@@ -177,7 +177,7 @@ function defaultBookDesign() {
       },
 
       body: {
-        fontFamily: "Georgia",
+        fontFamily: "Libre Baskerville",
         fontSize: 12,
         lineHeight: 1.2,
         textIndent: 18,

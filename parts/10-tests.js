@@ -104,6 +104,7 @@
       testDesignerChangeset();
       testChapterHeadControls();
       testSmallCaps();
+      testTemplateBody();
       testV2Model();
     } catch(e) {
       _testResults.push({ name: "RUNNER", pass: false, reason: "Exception: " + e.message });
@@ -4219,6 +4220,244 @@
     restoreState(savedParas);
     requestFullLayout("test-restore");
     updateToolbar();
+  }
+
+  // ================================================================
+  // Template-Driven Body Text Tests (0156)
+  // ================================================================
+
+  function testTemplateBody() {
+    restoreState(_testOrigState);
+    requestFullLayout("test-template-body");
+    layoutRegion.ensurePagesRealized(0, totalPages - 1);
+
+    // TBODY-001: default bookDesign body font is Libre Baskerville
+    var bd001 = defaultBookDesign();
+    assert("TBODY-001: default body fontFamily is Libre Baskerville",
+      bd001.chapter.body.fontFamily === "Libre Baskerville");
+
+    // TBODY-002: body tokens use bookDesign font
+    var saved002 = saveState();
+    doc.bookDesign.chapter.body.fontFamily = "Crimson Pro";
+    requestFullLayout("tbody-002");
+    layoutRegion.ensurePagesRealized(0, totalPages - 1);
+    var found002 = false;
+    for (var li002 = 0; li002 < lines.length; li002++) {
+      var ln002 = lines[li002];
+      if (ln002.paraIdx !== undefined && ln002.segments) {
+        var role002 = doc.paragraphs[ln002.paraIdx]
+          ? doc.paragraphs[ln002.paraIdx].style["x-role"] : "body";
+        if (role002 === "body" && ln002.segments.length > 0) {
+          found002 = true;
+          assert("TBODY-002: body segment uses Crimson Pro",
+            ln002.segments[0].fontFamily === "Crimson Pro",
+            "got " + ln002.segments[0].fontFamily);
+          break;
+        }
+      }
+    }
+    if (!found002) assert("TBODY-002: body line found", false, "no body lines");
+    restoreState(saved002);
+    requestFullLayout("tbody-002-restore");
+
+    // TBODY-003: non-body roles unaffected by body font change
+    var saved003 = saveState();
+    doc.bookDesign.chapter.body.fontFamily = "Arial";
+    requestFullLayout("tbody-003");
+    layoutRegion.ensurePagesRealized(0, totalPages - 1);
+    var titleOk003 = true;
+    for (var li003 = 0; li003 < lines.length; li003++) {
+      var ln003 = lines[li003];
+      if (ln003.paraIdx !== undefined && ln003.segments && ln003.segments.length > 0) {
+        var role003 = doc.paragraphs[ln003.paraIdx]
+          ? doc.paragraphs[ln003.paraIdx].style["x-role"] : "body";
+        if (role003 === "chapterTitle" || role003 === "heading2") {
+          if (ln003.segments[0].fontFamily === "Arial") {
+            titleOk003 = false;
+            break;
+          }
+        }
+      }
+    }
+    assert("TBODY-003: non-body roles not changed to Arial",
+      titleOk003);
+    restoreState(saved003);
+    requestFullLayout("tbody-003-restore");
+
+    // TBODY-004: inline font override preserved
+    var saved004 = saveState();
+    // Find a body paragraph and set one run to Courier New
+    var bodyPi004 = -1;
+    for (var pi004 = 0; pi004 < doc.paragraphs.length; pi004++) {
+      if ((doc.paragraphs[pi004].style["x-role"] || "body") === "body"
+          && paraTextLen(doc.paragraphs[pi004]) > 20) {
+        bodyPi004 = pi004;
+        break;
+      }
+    }
+    if (bodyPi004 >= 0) {
+      // Split first 5 chars into separate run with Courier New
+      var para004 = doc.paragraphs[bodyPi004];
+      var loc004 = posToRun(para004, 5);
+      splitRunAt(para004, loc004.r, loc004.ro);
+      para004.runs[0].fontFamily = "Courier New";
+      doc.bookDesign.chapter.body.fontFamily = "Palatino";
+      requestFullLayout("tbody-004");
+      layoutRegion.ensurePagesRealized(0, totalPages - 1);
+      // Find lines for this paragraph
+      var pLines004 = layoutRegion.linesForPara(bodyPi004);
+      var hasCourier = false;
+      var hasPalatino = false;
+      for (var pli = 0; pli < pLines004.length; pli++) {
+        for (var si004 = 0; si004 < pLines004[pli].segments.length; si004++) {
+          var seg004 = pLines004[pli].segments[si004];
+          if (seg004.fontFamily === "Courier New") hasCourier = true;
+          if (seg004.fontFamily === "Palatino") hasPalatino = true;
+        }
+      }
+      assert("TBODY-004a: Courier New override preserved",
+        hasCourier);
+      assert("TBODY-004b: remaining text uses Palatino",
+        hasPalatino);
+    } else {
+      assert("TBODY-004: body paragraph found", false);
+    }
+    restoreState(saved004);
+    requestFullLayout("tbody-004-restore");
+
+    // TBODY-005: textAlign from bookDesign
+    var saved005 = saveState();
+    doc.bookDesign.chapter.body.textAlign = "center";
+    requestFullLayout("tbody-005");
+    layoutRegion.ensurePagesRealized(0, totalPages - 1);
+    // Find a body paragraph first line and check alignment
+    var centered005 = false;
+    for (var li005 = 0; li005 < lines.length; li005++) {
+      var ln005 = lines[li005];
+      if (ln005.paraIdx !== undefined && ln005.segments && ln005.segments.length > 0) {
+        var role005 = doc.paragraphs[ln005.paraIdx]
+          ? doc.paragraphs[ln005.paraIdx].style["x-role"] : "body";
+        if (role005 === "body") {
+          // Centered text has segments offset from left edge
+          var firstSeg005 = ln005.segments[0];
+          if (firstSeg005.x > ln005.leftEdge + 5) {
+            centered005 = true;
+          }
+          break;
+        }
+      }
+    }
+    assert("TBODY-005: body text centered when bookDesign says center",
+      centered005);
+    restoreState(saved005);
+    requestFullLayout("tbody-005-restore");
+
+    // TBODY-006: fontSize from bookDesign
+    var saved006 = saveState();
+    doc.bookDesign.chapter.body.fontSize = 16;
+    requestFullLayout("tbody-006");
+    layoutRegion.ensurePagesRealized(0, totalPages - 1);
+    var sizeOk006 = false;
+    for (var li006 = 0; li006 < lines.length; li006++) {
+      var ln006 = lines[li006];
+      if (ln006.paraIdx !== undefined && ln006.segments && ln006.segments.length > 0) {
+        var role006 = doc.paragraphs[ln006.paraIdx]
+          ? doc.paragraphs[ln006.paraIdx].style["x-role"] : "body";
+        if (role006 === "body") {
+          sizeOk006 = (ln006.segments[0].fontSize === 16);
+          break;
+        }
+      }
+    }
+    assert("TBODY-006: body fontSize reads from bookDesign",
+      sizeOk006);
+    restoreState(saved006);
+    requestFullLayout("tbody-006-restore");
+
+    // TBODY-007: color from bookDesign
+    var saved007 = saveState();
+    doc.bookDesign.chapter.body.color = "#ff0000";
+    requestFullLayout("tbody-007");
+    layoutRegion.ensurePagesRealized(0, totalPages - 1);
+    var colorOk007 = false;
+    for (var li007 = 0; li007 < lines.length; li007++) {
+      var ln007 = lines[li007];
+      if (ln007.paraIdx !== undefined && ln007.segments && ln007.segments.length > 0) {
+        var role007 = doc.paragraphs[ln007.paraIdx]
+          ? doc.paragraphs[ln007.paraIdx].style["x-role"] : "body";
+        if (role007 === "body") {
+          colorOk007 = (ln007.segments[0].color === "#ff0000");
+          break;
+        }
+      }
+    }
+    assert("TBODY-007: body color reads from bookDesign",
+      colorOk007);
+    restoreState(saved007);
+    requestFullLayout("tbody-007-restore");
+
+    // TBODY-008: bold runs preserve fontWeight through template
+    var saved008 = saveState();
+    doc.bookDesign.chapter.body.fontFamily = "Palatino";
+    requestFullLayout("tbody-008");
+    layoutRegion.ensurePagesRealized(0, totalPages - 1);
+    // All body runs should have Palatino but bold ones keep bold
+    var boldOk008 = true;
+    for (var li008 = 0; li008 < lines.length; li008++) {
+      var ln008 = lines[li008];
+      if (ln008.paraIdx !== undefined && ln008.segments) {
+        var role008 = doc.paragraphs[ln008.paraIdx]
+          ? doc.paragraphs[ln008.paraIdx].style["x-role"] : "body";
+        if (role008 !== "body") continue;
+        for (var si008 = 0; si008 < ln008.segments.length; si008++) {
+          var seg008 = ln008.segments[si008];
+          // fontWeight should be whatever the run had — not clobbered
+          if (seg008.fontWeight !== "normal" && seg008.fontWeight !== "bold") {
+            boldOk008 = false;
+          }
+        }
+      }
+    }
+    assert("TBODY-008: fontWeight not clobbered by template",
+      boldOk008);
+    restoreState(saved008);
+    requestFullLayout("tbody-008-restore");
+
+    // TBODY-009: chapter heading title still uses its own template
+    var saved009 = saveState();
+    doc.bookDesign.chapter.body.fontFamily = "Arial";
+    doc.bookDesign.chapter.body.fontSize = 8;
+    requestFullLayout("tbody-009");
+    layoutRegion.ensurePagesRealized(0, totalPages - 1);
+    var titleFont009 = null;
+    var titleSize009 = null;
+    for (var li009 = 0; li009 < lines.length; li009++) {
+      var ln009 = lines[li009];
+      if (ln009.paraIdx !== undefined && ln009.segments && ln009.segments.length > 0) {
+        var role009 = doc.paragraphs[ln009.paraIdx]
+          ? doc.paragraphs[ln009.paraIdx].style["x-role"] : "body";
+        if (role009 === "chapterTitle") {
+          var sid009 = sectionOfPara(ln009.paraIdx);
+          var type009 = null;
+          if (_sectionIndex && _sectionIndex.byId[sid009]) {
+            type009 = _sectionIndex.byId[sid009].type;
+          }
+          if (type009 === "chapter") {
+            titleFont009 = ln009.segments[0].fontFamily;
+            titleSize009 = ln009.segments[0].fontSize;
+            break;
+          }
+        }
+      }
+    }
+    assert("TBODY-009a: chapter title not changed to Arial",
+      titleFont009 !== "Arial",
+      "got " + titleFont009);
+    assert("TBODY-009b: chapter title not changed to 8pt",
+      titleSize009 !== 8,
+      "got " + titleSize009);
+    restoreState(saved009);
+    requestFullLayout("tbody-009-restore");
   }
 
   // V2 Document Model Tests

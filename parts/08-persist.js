@@ -381,6 +381,15 @@ function loadSavedDoc() {
       if (_bdb.lineHeight === 1.4) _bdb.lineHeight = 1.2;
       if (_bdb.textAlign === "justify") _bdb.textAlign = "left";
     }
+    /* Migration: body fontFamily Georgia → Libre Baskerville.
+       Georgia was the default before OFL font switch. The
+       bookDesign body font was never consumed by the renderer
+       in earlier builds, so this value was inert. Safe to
+       update. */
+    if (doc.bookDesign && doc.bookDesign.chapter && doc.bookDesign.chapter.body) {
+      var _bdf = doc.bookDesign.chapter.body;
+      if (_bdf.fontFamily === "Georgia") _bdf.fontFamily = "Libre Baskerville";
+    }
     /* Migration: bookDesign sceneBreak spacing must match
        rendered defaults. Build 0122 shipped with 18/18 but
        the engine renders 12/12 via roleStyles. */

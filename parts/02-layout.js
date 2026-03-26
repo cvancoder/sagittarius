@@ -698,6 +698,13 @@ function runLayout(fromPara, toPara) {
       ls = ps.lineHeight || 1.2;
     }
 
+    /* Body paragraphs read textAlign from bookDesign template.
+       Non-body roles use their paragraph style as before. */
+    var _paraTextAlign = ps.textAlign || "left";
+    if (curRole === "body" && doc.bookDesign && doc.bookDesign.chapter && doc.bookDesign.chapter.body) {
+      _paraTextAlign = doc.bookDesign.chapter.body.textAlign || "left";
+    }
+
     /* Page Break: force new page and emit a single empty line marker */
     if (curRole === "pageBreak") {
       if (y > M_TOP + 0.5) { currentPage++; y = M_TOP; }
@@ -797,6 +804,63 @@ function runLayout(fromPara, toPara) {
         /* Recompute width with new font */
         measureCtx.font = _tFont;
         tokens[_ti].width = measureCtx.measureText(tokens[_ti].text).width;
+      }
+    }
+
+    /* ── Body text: override default tokens from template ──
+       For body paragraphs, replace token properties that match
+       the cascade baseline (bookDefaults.run) with bookDesign
+       template values. Tokens the user explicitly changed to a
+       different value are preserved. This is selective override,
+       not blanket — bold, italic, links, user-chosen fonts all
+       survive. Only "still at default" properties are replaced. */
+    var _isTemplateBody = false;
+    if (curRole === "body" && doc.bookDesign && doc.bookDesign.chapter
+        && doc.bookDesign.chapter.body) {
+      _isTemplateBody = true;
+      var _bdBody = doc.bookDesign.chapter.body;
+      var _bdRun = (doc.bookDefaults && doc.bookDefaults.run)
+        ? doc.bookDefaults.run : { fontFamily: "Georgia", fontSize: 12, color: "#1a1a1a" };
+
+      for (var _bi = 0; _bi < tokens.length; _bi++) {
+        var _bt = tokens[_bi];
+        var _changed = false;
+
+        /* fontFamily: replace if still at cascade default */
+        if (_bt.fontFamily === _bdRun.fontFamily
+            && _bdBody.fontFamily
+            && _bdBody.fontFamily !== _bdRun.fontFamily) {
+          _bt.fontFamily = _bdBody.fontFamily;
+          _changed = true;
+        }
+
+        /* fontSize: replace if still at cascade default */
+        if (_bt.fontSize === _bdRun.fontSize
+            && _bdBody.fontSize
+            && _bdBody.fontSize !== _bdRun.fontSize) {
+          _bt.fontSize = _bdBody.fontSize;
+          _changed = true;
+        }
+
+        /* color: replace if still at cascade default */
+        if (_bt.color === _bdRun.color
+            && _bdBody.color
+            && _bdBody.color !== _bdRun.color) {
+          _bt.color = _bdBody.color;
+          _changed = true;
+        }
+
+        /* Rebuild font string and remeasure if anything changed */
+        if (_changed) {
+          _bt.font = fontStr({
+            fontFamily: _bt.fontFamily,
+            fontSize: _bt.fontSize,
+            fontWeight: _bt.fontWeight,
+            fontStyle: _bt.fontStyle
+          });
+          measureCtx.font = _bt.font;
+          _bt.width = measureCtx.measureText(_bt.text).width;
+        }
       }
     }
 
@@ -1078,6 +1142,12 @@ function runLayout(fromPara, toPara) {
        Create a shallow copy with the template alignment
        so commitLine uses the correct textAlign. */
     var _linePs = ps;
+    /* Body textAlign from template */
+    if (_isTemplateBody && _paraTextAlign !== ps.textAlign) {
+      _linePs = {};
+      for (var _pk in ps) _linePs[_pk] = ps[_pk];
+      _linePs.textAlign = _paraTextAlign;
+    }
     if (_isChapterHeading) {
       var _tAlign = doc.bookDesign.chapter.heading.title.alignment;
       if (_tAlign) {
